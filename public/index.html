@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Resources</title>
+  <!-- Shared GROUNDED chrome (nav + feedback + run-locally footer). Injected
+       hosted; harmless locally. Do NOT hand-write nav. -->
+  <link rel="stylesheet" href="/grounded-chrome.css" />
+  <script src="/grounded-chrome.js" defer></script>
+  <style>
+    :root { --bg:#faf9f6; --fg:#1c1c1a; --muted:#6b6b66; --line:#e5e3da; --card:#fff; --accent:#1d4e8a; --good:#2c6b35; --warn:#8a5a1d; --bad:#8a2c2c; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:15px; line-height:1.55; }
+    header { padding:1.5rem 2rem 1rem; border-bottom:1px solid var(--line); }
+    header h1 { margin:0; font-size:1.4rem; font-weight:600; }
+    header .subtitle { color:var(--muted); font-size:0.9rem; }
+    main { padding:1.5rem 2rem 3rem; max-width:860px; margin:0 auto; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1rem; }
+    .card h2 { margin:0 0 0.5rem; font-size:1.05rem; font-weight:600; }
+    p.help { margin:0.25rem 0 1rem; color:var(--muted); font-size:0.9rem; }
+    label { display:block; margin:0.75rem 0 0.35rem; font-weight:500; font-size:0.9rem; }
+    textarea, input[type=text], select { width:100%; padding:0.6rem 0.75rem; border:1px solid var(--line); border-radius:6px; font-family:inherit; font-size:0.95rem; background:var(--card); color:var(--fg); }
+    textarea { min-height:70px; resize:vertical; }
+    button.primary { background:var(--accent); color:#fff; border:none; padding:0.6rem 1.1rem; border-radius:6px; font-family:inherit; font-size:0.95rem; cursor:pointer; font-weight:500; }
+    button.primary:disabled { background:var(--muted); cursor:not-allowed; }
+    button.ghost { background:none; border:1px solid var(--line); color:var(--fg); padding:0.5rem 0.9rem; border-radius:6px; font-family:inherit; font-size:0.88rem; cursor:pointer; }
+    .empty { color:var(--muted); font-style:italic; }
+    .status-line { color:var(--muted); font-size:0.9rem; }
+    header a#key-settings { font-size:0.8rem; color:var(--accent); text-decoration:none; }
+    header a#key-settings:hover { text-decoration:underline; }
+
+    .opp { border:1px solid var(--line); border-radius:8px; padding:0.9rem 1.1rem; margin-bottom:0.75rem; }
+    .opp h3 { margin:0 0 0.2rem; font-size:1rem; }
+    .opp h3 a { color:var(--fg); text-decoration:none; } .opp h3 a:hover { text-decoration:underline; }
+    .opp .meta { font-size:0.82rem; color:var(--muted); margin-bottom:0.4rem; }
+    .opp .why { font-size:0.9rem; margin:0.35rem 0 0.6rem; }
+    .opp .row { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
+    .opp .row select { width:auto; padding:0.35rem 0.5rem; font-size:0.85rem; }
+    .badge { display:inline-block; font-size:0.72rem; padding:0.1rem 0.5rem; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
+    .badge.new { border-color:var(--accent); color:var(--accent); }
+    .badge.pursuing { border-color:var(--good); color:var(--good); }
+    .badge.reviewing { border-color:var(--warn); color:var(--warn); }
+    .badge.dismissed { border-color:var(--line); color:var(--muted); }
+    .tag { display:inline-block; font-size:0.72rem; background:#eef3f8; color:var(--accent); border-radius:4px; padding:0.05rem 0.4rem; margin-right:0.3rem; }
+
+    #detail .back { margin-bottom:1rem; }
+    .thread { border:1px solid var(--line); border-radius:8px; padding:0.75rem 1rem; max-height:340px; overflow-y:auto; margin-bottom:0.6rem; background:#fcfbf9; }
+    .msg { margin:0.5rem 0; }
+    .msg .who { font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; }
+    .msg.user .body { font-weight:500; }
+    .msg .body { white-space:pre-wrap; font-size:0.92rem; }
+    .draft { white-space:pre-wrap; font-size:0.92rem; border:1px solid var(--line); border-radius:8px; padding:1rem 1.2rem; background:#fcfbf9; max-height:480px; overflow-y:auto; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 1rem; }
+    @media (max-width:640px){ .grid2 { grid-template-columns:1fr; } }
+    details.settings > summary { cursor:pointer; font-weight:600; font-size:1.05rem; }
+    .doc { display:flex; justify-content:space-between; align-items:center; padding:0.45rem 0; border-bottom:1px solid var(--line); font-size:0.92rem; }
+    .doc:last-child { border-bottom:none; }
+    .doc .kind { color:var(--muted); font-size:0.8rem; }
+  </style>
+</head>
+<body>
+
+<div id="app" style="display:none">
+  <header>
+    <h1>Resources</h1>
+    <div class="subtitle">Find the funding that fits your organisation — then draft the proposal from your own material.</div>
+    <a href="#" id="key-settings">API key</a>
+  </header>
+  <main>
+
+    <!-- ═══ LIST VIEW ═══ -->
+    <div id="list-view">
+
+      <div class="card">
+        <h2>Scan for opportunities</h2>
+        <p class="help">Searches the live web for currently-open calls, corporate and philanthropic openings — matched against your profile and search criteria below, each with a written case for why it fits you.</p>
+        <button class="primary" id="scan-btn">Scan the web now</button>
+        <span id="scan-status" class="status-line" style="margin-left:0.75rem"></span>
+      </div>
+
+      <div class="card">
+        <h2>Opportunities</h2>
+        <div id="opps"><span class="status-line">Loading…</span></div>
+      </div>
+
+      <div class="card">
+        <h2>Add one you found yourself</h2>
+        <p class="help">Paste the call text, an email, or a description (include the URL if you have it) — it gets the same honest fit assessment as scanned ones.</p>
+        <textarea id="assess-text" placeholder="Paste the opportunity here…"></textarea>
+        <div style="margin-top:0.75rem">
+          <button class="primary" id="assess-btn">Assess the fit</button>
+          <span id="assess-status" class="status-line" style="margin-left:0.75rem"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <details class="settings" id="criteria-details">
+          <summary>Search criteria — who you are and what to look for</summary>
+          <p class="help">This is the adjustable backend. As your strategy shifts — new sectors, new business models, new themes — change it here and the next scan reflects it. Everything is optional, but the scan is only as good as what it knows.</p>
+          <label>Who you are (in your own words)</label>
+          <textarea id="c-identity" placeholder="e.g. We specialise in working with marginalised groups on human rights issues…"></textarea>
+          <label>Current resource-mobilisation strategy</label>
+          <textarea id="c-strategy" placeholder="e.g. Shifting beyond institutional grants toward corporate and philanthropic partnerships…"></textarea>
+          <div class="grid2">
+            <div><label>Cross-cutting themes (comma-separated)</label><input type="text" id="c-themes" placeholder="climate, women, youth, digital health" /></div>
+            <div><label>Where you work</label><input type="text" id="c-geographies" placeholder="countries / regions" /></div>
+            <div><label>Funder types to pursue</label><input type="text" id="c-donor_types" placeholder="institutional, corporate, philanthropic" /></div>
+            <div><label>Extra search terms</label><input type="text" id="c-keywords" placeholder="anything else to search for" /></div>
+          </div>
+          <label>Eligibility notes</label>
+          <textarea id="c-eligibility" placeholder="What you are (and aren't) eligible for — registration, size, track record…"></textarea>
+          <label>What you will NOT pursue</label>
+          <textarea id="c-exclusions" placeholder="Funders or conditions you won't take."></textarea>
+          <div style="margin-top:0.75rem">
+            <button class="primary" id="criteria-btn">Save criteria</button>
+            <span id="criteria-status" class="status-line" style="margin-left:0.75rem"></span>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <details class="settings">
+          <summary>Your organisation's documents — what grounds the proposals</summary>
+          <p class="help">Paste past proposals, strategy documents, results reports. Proposal drafts and opportunity discussions draw ONLY on these and your profile — anything missing is marked for you to fill in, never invented.</p>
+          <div id="docs"><span class="status-line">Loading…</span></div>
+          <label>Title</label>
+          <input type="text" id="doc-title" placeholder="e.g. 2024 EU proposal — community health rights" />
+          <label>Type</label>
+          <select id="doc-kind">
+            <option value="past proposal">Past proposal</option>
+            <option value="strategy">Strategy document</option>
+            <option value="results report">Results / annual report</option>
+            <option value="document">Other</option>
+          </select>
+          <label>Text</label>
+          <textarea id="doc-text" placeholder="Paste the document text here…"></textarea>
+          <div style="margin-top:0.75rem">
+            <button class="primary" id="doc-btn">Add document</button>
+            <span id="doc-status" class="status-line" style="margin-left:0.75rem"></span>
+          </div>
+        </details>
+      </div>
+
+    </div>
+
+    <!-- ═══ DETAIL VIEW (one opportunity: discuss + draft) ═══ -->
+    <div id="detail" style="display:none">
+      <button class="ghost back" id="back-btn">← All opportunities</button>
+      <div class="card" id="detail-head"></div>
+      <div class="card">
+        <h2>Discuss it</h2>
+        <p class="help">Ask anything — eligibility doubts, angle, risks. Answers are grounded in your profile, criteria and documents.</p>
+        <div class="thread" id="thread"><span class="empty">No discussion yet. Ask the first question below.</span></div>
+        <textarea id="chat-input" placeholder="e.g. Are we actually eligible given our registration status? What angle plays to our track record?"></textarea>
+        <div style="margin-top:0.6rem">
+          <button class="primary" id="chat-btn">Ask</button>
+          <span id="chat-status" class="status-line" style="margin-left:0.75rem"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Proposal draft</h2>
+        <p class="help">A working draft from your own material. Gaps appear as [FILL IN: …] — a human finishes and verifies every claim before anything is submitted.</p>
+        <div id="proposal-box"><span class="empty">No draft yet.</span></div>
+        <label>Instructions for this pass (optional)</label>
+        <textarea id="proposal-instructions" placeholder="e.g. Lead with the 2023 youth programme results; keep it under two pages."></textarea>
+        <div style="margin-top:0.6rem">
+          <button class="primary" id="proposal-btn">Draft proposal</button>
+          <button class="ghost" id="copy-btn" style="display:none">Copy draft</button>
+          <span id="proposal-status" class="status-line" style="margin-left:0.75rem"></span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "node-resources",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GROUNDED Node — Resources: finds funding and partnership opportunities matched to your organisation, explains why each one fits, lets you interrogate them, and helps draft the proposal.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "start:hosted": "node server-hosted.js",
+    "update": "node update.mjs"
+  },
+  "dependencies": {
+    "@developai/grounded-node-runtime": "github:pauldevelopai/grounded-node-runtime#v0.15.0"
+  },
+  "license": "Apache-2.0"
+}
