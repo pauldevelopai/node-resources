@@ -10,10 +10,10 @@
     "start:hosted": "node server-hosted.js",
     "update": "node update.mjs"
   },
-  "comment_engine_dep": "file: pin until pauldevelopai/grounded-opportunity-engine exists on GitHub — flip to github:...#v0.1.0 before any deploy. Runtime pin moves to v0.16.0 when that tag lands (host.corpus).",
+  "comment_engine_dep": "Runtime pin moves to v0.16.0 when that tag lands (host.corpus lights up automatically).",
   "dependencies": {
     "@developai/grounded-node-runtime": "github:pauldevelopai/grounded-node-runtime#v0.15.0",
-    "@developai/grounded-opportunity-engine": "file:../../grounded-opportunity-engine",
+    "@developai/grounded-opportunity-engine": "github:pauldevelopai/grounded-opportunity-engine#v0.1.0",
     "@anthropic-ai/sdk": "^0.32.1",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1"
