@@ -8,6 +8,8 @@ import 'dotenv/config';
 import { createLiteHost, createServer } from '@developai/grounded-node-runtime';
 import * as handlers from './lib/handlers.js';
 import { mountAppRoutes } from './lib/routes.js';
+import { getPool } from './lib/pool.js';
+import { ensureSchema } from './lib/schema.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -19,6 +21,12 @@ const SLUG = 'resources';
 const DISPLAY_NAME = 'Resources';
 
 async function main() {
+  // Pipeline features (scan/assess/opportunities) need Postgres; the rest of
+  // the app runs without it. Honest 503s guide the user when it's absent.
+  const pool = getPool();
+  if (pool) await ensureSchema(pool);
+  else console.log('[resources] DATABASE_URL not set — running without the opportunity pipeline (docs/chat/key setup still work).');
+
   const host = createLiteHost({
     appSlug: SLUG,
     nodeVersion: pkg.version,

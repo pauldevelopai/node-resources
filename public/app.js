@@ -1,13 +1,13 @@
 // Resources — dashboard JS. Plain vanilla, relative API paths.
 //
 // The API-KEY UX lives in mountKeyUI() below — the standard component from the
-// template, unchanged: a first-run gate (no key → blocking setup) and an
-// always-available Settings modal. Nobody edits .env by hand.
+// template, unchanged. Nobody edits .env by hand.
 
 (function () {
   const $ = (sel) => document.querySelector(sel);
 
-  let currentId = null; // the opportunity open in the detail view
+  let currentId = null;   // the opportunity open in the detail view
+  let dbReady = false;
 
   async function boot() {
     $('#app').style.display = 'block';
@@ -20,9 +20,11 @@
     $('#scan-btn').addEventListener('click', runScan);
     $('#assess-btn').addEventListener('click', assessPasted);
     $('#criteria-btn').addEventListener('click', saveCriteria);
+    $('#src-btn').addEventListener('click', addSource);
     $('#doc-btn').addEventListener('click', addDoc);
     $('#back-btn').addEventListener('click', showList);
     $('#chat-btn').addEventListener('click', sendChat);
+    $('#fp-btn').addEventListener('click', analyseFunder);
     $('#proposal-btn').addEventListener('click', draftProposal);
     $('#copy-btn').addEventListener('click', copyDraft);
     $('#chat-input').addEventListener('keydown', (e) => {
@@ -34,7 +36,12 @@
   async function loadOverview() {
     const r = await fetchJson('api/overview').catch(() => null);
     if (!r || !r.ok) { $('#opps').innerHTML = '<span class="empty">Could not load. Refresh the page.</span>'; return; }
+    dbReady = !!r.dbReady;
+    $('#db-notice').style.display = dbReady ? 'none' : 'block';
+    $('#scan-btn').disabled = !dbReady;
+    $('#assess-btn').disabled = !dbReady;
     renderOpportunities(r.opportunities || []);
+    renderSources(r.sources || []);
     renderDocs(r.docs || []);
     fillCriteria(r.criteria || {});
   }
@@ -43,16 +50,17 @@
   async function runScan() {
     const btn = $('#scan-btn'), status = $('#scan-status');
     btn.disabled = true;
-    status.textContent = 'Searching the live web — this takes a minute or two…';
+    status.textContent = 'Searching the live web, then extracting and scoring — this takes a few minutes…';
     try {
       const r = await postJson('api/scan', {});
-      if (!r.ok) { status.textContent = r.message || 'Scan failed. Try again.'; return; }
-      status.textContent = r.added || r.refreshed
-        ? `Done: ${r.added} new, ${r.refreshed} refreshed.`
-        : 'Done — nothing new found this time. Try widening the criteria.';
+      if (!r.ok) { status.textContent = r.message || r.error || 'Scan failed. Try again.'; return; }
+      const d = r.digest || {};
+      status.textContent = d.new
+        ? `Done: ${d.new} new (${d.green} green, ${d.amber} amber, ${d.red} red), ${d.duplicate} already known${r.corpusWritten ? `, ${r.corpusWritten} written to the corpus` : ''}.`
+        : `Done — nothing new this time (${d.duplicate || 0} already known). Try widening the criteria.`;
       renderOpportunities(r.opportunities || []);
     } catch (e) { status.textContent = 'Network error: ' + e.message; }
-    finally { btn.disabled = false; }
+    finally { btn.disabled = !dbReady; }
   }
 
   // ─── Assess a pasted opportunity ───────────────────────────────────
@@ -60,46 +68,46 @@
     const btn = $('#assess-btn'), status = $('#assess-status'), ta = $('#assess-text');
     const text = ta.value.trim();
     if (!text) { status.textContent = 'Paste the opportunity first.'; return; }
-    btn.disabled = true; status.textContent = 'Assessing the fit…';
+    btn.disabled = true; status.textContent = 'Extracting, scoring and assessing the fit…';
     try {
       const r = await postJson('api/opportunities/assess', { text });
-      if (!r.ok) { status.textContent = r.message || 'Could not assess it.'; return; }
-      ta.value = ''; status.textContent = 'Added below.';
+      if (!r.ok) { status.textContent = r.message || r.error || 'Could not assess it.'; return; }
+      ta.value = '';
+      status.textContent = `Added: ${r.band} — ${r.routing_reason}`;
       await refreshOpportunities();
     } catch (e) { status.textContent = 'Network error: ' + e.message; }
-    finally { btn.disabled = false; }
+    finally { btn.disabled = !dbReady; }
   }
 
   async function refreshOpportunities() {
-    const r = await fetchJson('api/opportunities').catch(() => null);
+    const r = await fetchJson('api/overview').catch(() => null);
     if (r && r.ok) renderOpportunities(r.opportunities || []);
   }
 
   // ─── Opportunity list ──────────────────────────────────────────────
-  const STATUSES = ['new', 'reviewing', 'pursuing', 'dismissed'];
+  const STATUSES = ['new', 'qualified', 'needs_review', 'pursuing', 'rejected', 'resolved'];
 
   function renderOpportunities(opps) {
     const box = $('#opps');
     if (!opps.length) {
-      box.innerHTML = '<span class="empty">Nothing yet. Set your search criteria below, then run a scan — or paste one you found yourself.</span>';
+      box.innerHTML = '<span class="empty">Nothing yet. Set your criteria and sources below, then scan — or paste one you found yourself.</span>';
       return;
     }
-    const order = { pursuing: 0, reviewing: 1, new: 2, dismissed: 3 };
-    opps = [...opps].sort((a, b) => (order[a.status] ?? 2) - (order[b.status] ?? 2));
     box.innerHTML = opps.map((o) => `
       <div class="opp" data-id="${escapeHtml(o.id)}">
-        <h3>${o.url ? `<a href="${escapeHtml(o.url)}" target="_blank" rel="noopener">${escapeHtml(o.title)}</a>` : escapeHtml(o.title)}</h3>
+        <h3>${o.url ? `<a href="${escapeHtml(o.url)}" target="_blank" rel="noopener">${escapeHtml(o.title || 'Untitled')}</a>` : escapeHtml(o.title || 'Untitled')}</h3>
         <div class="meta">
-          <span class="badge ${escapeHtml(o.status)}">${escapeHtml(o.status)}</span>
-          ${escapeHtml(o.funder)} · ${escapeHtml(o.funder_type)} · deadline ${escapeHtml(o.deadline)} · ${escapeHtml(o.amount)}
-          ${o.source === 'manual' ? ' · added by you' : ''}
+          ${o.band ? `<span class="badge ${escapeHtml(o.band)}">${escapeHtml(o.band)} · ${o.total_score ?? '–'}</span>` : ''}
+          <span class="badge">${escapeHtml(o.status)}</span>
+          ${o.outcome ? `<span class="badge outcome">outcome: ${escapeHtml(o.outcome)}</span>` : ''}
+          ${escapeHtml(o.funder || 'unknown funder')} · ${escapeHtml(o.funder_type || 'other')} · deadline ${o.closing_date ? escapeHtml(String(o.closing_date).slice(0, 10)) : 'unknown'} · ${escapeHtml(o.amount || 'unknown')}
         </div>
-        <div>${(o.themes || []).map((t) => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
-        <div class="why">${escapeHtml(o.why_relevant)}</div>
+        ${o.summary ? `<div class="why">${escapeHtml(o.summary)}</div>` : ''}
+        <div class="why" style="color:var(--muted);font-size:0.85rem">${escapeHtml(o.routing_reason || '')}</div>
         <div class="row">
-          <button class="primary" data-act="open">Discuss &amp; draft</button>
+          <button class="primary" data-act="open">Open</button>
           <select data-act="status">
-            ${STATUSES.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
+            ${STATUSES.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s.replace('_', ' ')}</option>`).join('')}
           </select>
           <button class="ghost" data-act="remove">Remove</button>
         </div>
@@ -118,6 +126,31 @@
         refreshOpportunities();
       });
     });
+  }
+
+  // ─── Sources ───────────────────────────────────────────────────────
+  function renderSources(sources) {
+    const box = $('#sources');
+    box.innerHTML = sources.length
+      ? sources.map((s) => `
+          <div class="src" data-id="${escapeHtml(s.id)}">
+            <span>${escapeHtml(s.name)} <span class="kind">· ${escapeHtml(s.kind)}${s.location ? ` · ${escapeHtml(s.location)}` : ''} · seen ${s.items_seen || 0} / new ${s.items_new || 0}</span></span>
+            <button class="ghost" data-act="del">Remove</button>
+          </div>`).join('')
+      : '<span class="empty">No sources yet. Add the portals and pages where you already look.</span>';
+    box.querySelectorAll('[data-act=del]').forEach((b) => b.addEventListener('click', async () => {
+      await postJson('api/sources/delete', { id: b.closest('.src').dataset.id });
+      loadOverview();
+    }));
+    if (!sources.length) $('#sources-details').open = true;
+  }
+
+  async function addSource() {
+    const status = $('#src-status');
+    const r = await postJson('api/sources', { name: $('#src-name').value, location: $('#src-location').value, kind: 'html' }).catch((e) => ({ ok: false, message: e.message }));
+    if (!r.ok) { status.textContent = r.message || r.error || 'Could not add it.'; return; }
+    $('#src-name').value = ''; $('#src-location').value = ''; status.textContent = 'Added.';
+    loadOverview();
   }
 
   // ─── Criteria ──────────────────────────────────────────────────────
@@ -139,7 +172,9 @@
     btn.disabled = true; status.textContent = 'Saving…';
     try {
       const r = await postJson('api/criteria', body);
-      status.textContent = r.ok ? 'Saved. The next scan uses this.' : (r.message || 'Could not save.');
+      status.textContent = r.ok
+        ? (r.scoringRefreshed ? 'Saved — scan targeting AND scoring rules updated.' : 'Saved. The next scan uses this.')
+        : (r.message || r.error || 'Could not save.');
     } catch (e) { status.textContent = 'Network error: ' + e.message; }
     finally { btn.disabled = false; }
   }
@@ -174,25 +209,81 @@
     finally { btn.disabled = false; }
   }
 
-  // ─── Detail view: discuss + draft ──────────────────────────────────
+  // ─── Detail view ───────────────────────────────────────────────────
   async function openDetail(id) {
     currentId = id;
     const r = await postJson('api/opportunity', { id }).catch(() => null);
     if (!r || !r.ok) return;
-    const o = r.opportunity;
-    $('#detail-head').innerHTML = `
-      <h2>${o.url ? `<a href="${escapeHtml(o.url)}" target="_blank" rel="noopener">${escapeHtml(o.title)}</a>` : escapeHtml(o.title)}</h2>
-      <div class="meta" style="color:var(--muted);font-size:0.85rem">
-        <span class="badge ${escapeHtml(o.status)}">${escapeHtml(o.status)}</span>
-        ${escapeHtml(o.funder)} · ${escapeHtml(o.funder_type)} · deadline ${escapeHtml(o.deadline)} · ${escapeHtml(o.amount)}
-      </div>
-      <p style="margin:0.6rem 0 0.3rem">${escapeHtml(o.summary)}</p>
-      <p style="margin:0.3rem 0 0;color:var(--muted);font-size:0.9rem"><strong>Why it fits:</strong> ${escapeHtml(o.why_relevant)}</p>`;
+    renderHead(r.opportunity, r.flags || []);
+    renderFunderProfile(r.opportunity.funder_profile);
     renderThread(r.chat);
     renderProposal(r.proposal);
     $('#list-view').style.display = 'none';
     $('#detail').style.display = 'block';
     window.scrollTo(0, 0);
+  }
+
+  function renderHead(o, flags) {
+    const fitNote = o.extracted?.qualification_note || (flags.find((f) => f.flag_type === 'reviewer_note') || {}).evidence_note || '';
+    $('#detail-head').innerHTML = `
+      <h2>${o.url ? `<a href="${escapeHtml(o.url)}" target="_blank" rel="noopener">${escapeHtml(o.title || 'Untitled')}</a>` : escapeHtml(o.title || 'Untitled')}</h2>
+      <div style="color:var(--muted);font-size:0.85rem;margin-bottom:0.5rem">
+        ${o.band ? `<span class="badge ${escapeHtml(o.band)}">${escapeHtml(o.band)} · ${o.total_score ?? '–'}</span>` : ''}
+        <span class="badge">${escapeHtml(o.status)}</span>
+        ${o.outcome ? `<span class="badge outcome">outcome: ${escapeHtml(o.outcome)} </span>` : ''}
+        ${o.corpus_record_id ? '<span class="badge">in corpus</span>' : ''}
+        ${escapeHtml(o.funder || 'unknown funder')} · ${escapeHtml(o.funder_type || 'other')} · deadline ${o.closing_date ? escapeHtml(String(o.closing_date).slice(0, 10)) : 'unknown'} · ${escapeHtml(o.amount || 'unknown')}
+      </div>
+      ${o.extracted?.summary ? `<p style="margin:0.4rem 0">${escapeHtml(o.extracted.summary)}</p>` : ''}
+      ${fitNote ? `<p style="margin:0.4rem 0;color:var(--muted)"><strong>Fit:</strong> ${escapeHtml(fitNote)}</p>` : ''}
+      <p style="margin:0.4rem 0;color:var(--muted);font-size:0.85rem">${escapeHtml(o.routing_reason || '')}</p>
+      ${flags.filter((f) => f.flag_type !== 'reviewer_note').map((f) => `
+        <div class="flag"><span class="kind">${escapeHtml(f.flag_type)}</span> (severity ${f.severity}) — ${escapeHtml(f.evidence_note || '')}</div>`).join('')}
+      <div class="row" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.7rem">
+        <button class="ghost" data-oc="applied">We applied</button>
+        <button class="ghost" data-oc="won">We won it</button>
+        <button class="ghost" data-oc="lost">We lost it</button>
+        <button class="ghost" data-oc="dismissed">Dismissed</button>
+        ${o.corpus_record_id ? '<button class="ghost" id="verify-btn">Mark human-verified</button>' : ''}
+        <span class="status-line" id="head-status"></span>
+      </div>`;
+    document.querySelectorAll('#detail-head [data-oc]').forEach((b) => b.addEventListener('click', async () => {
+      const note = prompt(`Recording outcome "${b.dataset.oc}" — add a short note (why it worked / didn't):`) || '';
+      const r = await postJson('api/opportunities/outcome', { id: currentId, outcome: b.dataset.oc, note });
+      $('#head-status').textContent = r.ok ? 'Outcome recorded — this is the most valuable data you collect.' : (r.message || r.error || 'Could not record it.');
+      if (r.ok) openDetail(currentId);
+    }));
+    const vb = document.getElementById('verify-btn');
+    if (vb) vb.addEventListener('click', async () => {
+      const r = await postJson('api/opportunities/verify', { id: currentId });
+      $('#head-status').textContent = r.ok ? `Verified by ${r.verified_by}.` : (r.message || r.error || 'Could not verify.');
+    });
+  }
+
+  function renderFunderProfile(fp) {
+    const box = $('#funder-profile');
+    if (!fp) { box.innerHTML = '<span class="empty">Not analysed yet.</span>'; $('#fp-btn').textContent = 'Analyse this funder'; return; }
+    const list = (arr) => (arr && arr.length ? arr.map((x) => `<li>${escapeHtml(x)}</li>`).join('') : '<li class="empty">nothing found</li>');
+    box.innerHTML = `<div class="fp">
+      <div class="lbl">Their priorities</div><ul>${list(fp.priorities)}</ul>
+      <div class="lbl">Phrases they repeat (use these where true of you)</div><ul>${list(fp.their_language)}</ul>
+      <div class="lbl">Outcomes they want to see</div><ul>${list(fp.outcomes_wanted)}</ul>
+      ${fp.application_advice ? `<div class="lbl">Their application advice</div><p>${escapeHtml(fp.application_advice)}</p>` : ''}
+    </div>`;
+    $('#fp-btn').textContent = 'Re-analyse';
+  }
+
+  async function analyseFunder() {
+    if (!currentId) return;
+    const btn = $('#fp-btn'), status = $('#fp-status');
+    btn.disabled = true; status.textContent = 'Reading the funder — a minute or so…';
+    try {
+      const r = await postJson('api/funderprofile', { id: currentId });
+      if (!r.ok) { status.textContent = r.message || r.error || 'Could not analyse.'; return; }
+      status.textContent = '';
+      renderFunderProfile(r.funder_profile);
+    } catch (e) { status.textContent = 'Network error: ' + e.message; }
+    finally { btn.disabled = false; }
   }
 
   function showList() {
@@ -223,7 +314,7 @@
     btn.disabled = true; status.textContent = 'Thinking…';
     try {
       const r = await postJson('api/chat', { id: currentId, message });
-      if (!r.ok) { status.textContent = r.message || 'Could not answer.'; return; }
+      if (!r.ok) { status.textContent = r.message || r.error || 'Could not answer.'; return; }
       ta.value = ''; status.textContent = '';
       renderThread(r.chat);
     } catch (e) { status.textContent = 'Network error: ' + e.message; }
@@ -250,8 +341,9 @@
     btn.disabled = true; status.textContent = 'Writing from your material — this takes a minute…';
     try {
       const r = await postJson('api/proposal', { id: currentId, instructions: $('#proposal-instructions').value.trim() });
-      if (!r.ok) { status.textContent = r.message || 'Could not draft it.'; return; }
-      $('#proposal-instructions').value = ''; status.textContent = 'Done. Read it critically — fill every [FILL IN] before it goes anywhere.';
+      if (!r.ok) { status.textContent = r.message || r.error || 'Could not draft it.'; return; }
+      $('#proposal-instructions').value = '';
+      status.textContent = 'Done. Read it critically — fill every [FILL IN] before it goes anywhere.';
       renderProposal(r.proposal);
     } catch (e) { status.textContent = 'Network error: ' + e.message; }
     finally { btn.disabled = false; }
@@ -269,7 +361,6 @@
                         openai:    { label: 'OpenAI (GPT)',       link: 'https://platform.openai.com/api-keys', hint: 'sk-…' } };
     let picked = 'anthropic';
 
-    // One-time styles + DOM
     const style = document.createElement('style');
     style.textContent = `
       #gk-ov{position:fixed;inset:0;background:rgba(20,20,18,.45);display:none;align-items:center;justify-content:center;z-index:9999;padding:1rem}
@@ -379,11 +470,9 @@
       setTimeout(() => el('gk-key') && el('gk-key').focus(), 50);
     }
 
-    // Wire a settings trigger if the page has one.
     const trigger = document.getElementById('key-settings');
     if (trigger) trigger.addEventListener('click', (e) => { e.preventDefault(); open('settings'); });
 
-    // First-run gate: no key + not server-managed → require one now.
     fetchJson('api/setup').then((s) => {
       if (s && !s.configured && !s.serverManaged) open('required');
       else if (typeof opts.onConfigured === 'function') opts.onConfigured();

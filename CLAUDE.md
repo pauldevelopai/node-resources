@@ -1,55 +1,59 @@
 # node-resources — Resources (GROUNDED Node)
 
-> **ON HOLD — see NODE.md.** Do not create the GitHub repo, add the nodes.json
-> card, or deploy. PV is gated on Caili's concept-note approval, and this
-> functionality belongs in the shared Opportunity Finder engine (seed: LeadFinder).
+> **BUILT, NOT DEPLOYED — see NODE.md.** Do not create the GitHub repo, add the
+> nodes.json card, or deploy without Paul's go-ahead: PV (the first user) is
+> gated on Caili approving their concept note.
 
-Resource mobilisation for an organisation: find funding/partnership opportunities
-that fit them, explain why, discuss each one, and draft proposals from their own
-material. First user: PV. Built from `node-template`; runs **locally** (own AI key,
-JSON files) and **hosted** (multi-tenant, tracker JWT auth, Postgres-backed
-`host.store`) from the same handlers.
+The **fundraising consumer of the shared Opportunity Finder engine**
+(`@developai/grounded-opportunity-engine`, entity `funding_call`). Find funding
+opportunities matched to an organisation, explain the fit honestly, discuss
+each one grounded in the org's material, and draft funder-shaped proposals.
+Runs local (own key + own Postgres) and hosted (multi-tenant) from one code path.
 
 ## Map
-- **`index.js`** (LOCAL) / **`server-hosted.js`** (HOSTED) — slug `resources`,
-  display name "Resources". Keep the no-cache app-shell middleware in
-  `server-hosted.js`'s `mountRoutes`.
-- **`lib/handlers.js`** — the standard generic handlers (`getSetupStatus` /
-  `postSetup` = browser key flow, server-managed when `GROUNDED_HOSTED`;
-  `getActivity`). Unchanged from the template pattern.
-- **`lib/context.js`** — the grounding layer. `orgContext(host, {withDocs})`
-  builds the block every AI call is prefixed with: shared `host.profile` +
-  this Node's criteria (`host.store` `criteria/main`) + pasted internal docs.
-  Also `opportunityId()` (stable `funder::title` key → idempotent re-scans) and
-  `extractJson()` (tolerant JSON pull from AI replies).
-- **`lib/routes.js`** — the real surface (all under `mountAppRoutes`):
-  - `GET /api/overview` — criteria + opportunities + docs (no text) + profile in one call
-  - `POST /api/criteria` — save the adjustable search backend
-  - `POST /api/scan` — live web search via `host.ai.chat(..., {webSearch:{maxUses:8}})`,
-    JSON-array reply parsed and upserted into `opportunities` (statuses survive re-scan)
-  - `POST /api/opportunities/assess` — paste-your-own → same honest fit assessment
-  - `POST /api/opportunities/status|delete`, `POST /api/opportunity` (one + chat + proposal)
-  - `POST /api/chat` — per-opportunity discussion, grounded `withDocs:true`
-  - `GET|POST /api/docs`, `POST /api/docs/delete` — internal material (60k chars cap each)
-  - `POST /api/proposal` — draft/revise in passes; gaps are `[FILL IN: …]`, never invented
-- **`public/`** — vanilla JS dashboard, RELATIVE paths, list view + per-opportunity
-  detail view (discuss + draft). `mountKeyUI()` is the standard key UX, verbatim.
+- **`index.js`** / **`server-hosted.js`** — entries; both run `ensureSchema`
+  (hosted via the runtime's hook). Keep the no-cache app-shell middleware.
+- **`lib/schema.js`** — engine-standard tables in the `resources` schema.
+  Deliberate: NO FKs to public.newsrooms (standalone installs); runs uses the
+  engine's new `items_green/amber/red` names.
+- **`lib/engine.js`** — the wiring: `tenantOf` (JWT newsroom_id →
+  team_members, fail closed; local = zero-UUID), `STARTER_FUNDING_CRITERIA`
+  (seed), `refreshCriteriaFromForm` (criteria card → new active version;
+  weights/thresholds carry over), `pipelineFor(orgContext)` (per-request
+  pipeline — checkpoint 2 embeds tenant context).
+- **`lib/extract.js`** — the prompts (consumer config): call-field extraction,
+  per-tenant evidence/fit, and `extractFunderProfile` (deck step 2 — the
+  funder's own language, web-search assisted).
+- **`lib/claude.js`** — the injected model call (env key, 429 retry,
+  webSearch support). The engine never owns a key.
+- **`lib/context.js`** — prose criteria card + org docs + shared profile →
+  the grounding block every AI call gets.
+- **`lib/routes.js`** — the surface: overview, criteria, sources, scan,
+  assess, opportunity (+flags/chat/proposal), status, **outcome** (named
+  person → corpus setOutcome), **verify** (named person → corpus verify),
+  funderprofile, chat, docs, proposal.
+- **`lib/pool.js`** — lazy pg pool; absent DATABASE_URL → honest 503s on
+  pipeline routes only.
+- **`public/`** — vanilla JS dashboard; `mountKeyUI()` verbatim.
 
 ## Rules that shaped it (don't undo)
-- **No fake data, ever.** The scan prompt demands real found URLs or `[]`; the
-  proposal prompt forbids invented track record — `[FILL IN: …]` markers instead;
-  empty states in the UI are honest.
-- **GET handlers get no query params** (runtime wrap) — every parameterised
-  endpoint here is a POST. Keep it that way.
-- **Idempotent writes** — opportunities/chats/proposals are keyed `host.store`
-  puts, so nothing duplicates on retry or re-scan.
-- **Web search is Anthropic-only** (runtime ignores it for OpenAI). Local OpenAI
-  users still get assess/chat/draft.
-- Runtime pinned `github:pauldevelopai/grounded-node-runtime#v0.15.0`. If it runs
-  stale after a tag bump: `rm -rf node_modules/@developai && npm install`.
+- **The model never scores.** Routing is arithmetic (engine) against versioned
+  tenant criteria. The scan's discovery step finds candidates; the pipeline
+  decides bands.
+- **No fake data.** Discovery reports only real found URLs or nothing; drafts
+  mark gaps `[FILL IN: …]`; unwired paths return honest errors; corpus
+  write-back reports skipped when the runtime lacks host.corpus.
+- **Verification and outcomes are a named person's acts** — email from the JWT
+  hosted, an explicit name locally.
+- **Criteria are config.** The card edit regenerates scoring rules — never a
+  redeploy (vision layer 3).
+- Engine dep is `file:` until the GitHub repo exists; runtime pin moves to
+  v0.16.0 when that tag lands (host.corpus lights up automatically — the code
+  already guards for it).
 
-## Deploy
-Registered in `nodes/nodes.json` (products: grounded). Host: `deploy-node.sh
-resources <port>` on the box, then the Caddy `handle_path /nodes/resources/app/*`
-block + `sudo systemctl restart caddy`. Downloads `/nodes/resources/{mac,windows}`
-work via the generic Caddy rule. See `nodes/ADD_A_NODE.md`.
+## Test setup that worked (2026-08-19)
+Local Postgres :5433, database `resources_test`; boot with
+`DATABASE_URL=postgres://localhost:5433/resources_test PORT=3097 npm start`.
+Criteria save → verify `resources.criteria_versions` gains a version and
+`theme_fit`/`geography_fit` rules carry the card's lists. Full pipeline test
+needs a funded Anthropic key.

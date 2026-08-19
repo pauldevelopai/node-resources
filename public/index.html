@@ -15,7 +15,7 @@
     header { padding:1.5rem 2rem 1rem; border-bottom:1px solid var(--line); }
     header h1 { margin:0; font-size:1.4rem; font-weight:600; }
     header .subtitle { color:var(--muted); font-size:0.9rem; }
-    main { padding:1.5rem 2rem 3rem; max-width:860px; margin:0 auto; }
+    main { padding:1.5rem 2rem 3rem; max-width:880px; margin:0 auto; }
     .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:1.25rem 1.5rem; margin-bottom:1rem; }
     .card h2 { margin:0 0 0.5rem; font-size:1.05rem; font-weight:600; }
     p.help { margin:0.25rem 0 1rem; color:var(--muted); font-size:0.9rem; }
@@ -29,6 +29,7 @@
     .status-line { color:var(--muted); font-size:0.9rem; }
     header a#key-settings { font-size:0.8rem; color:var(--accent); text-decoration:none; }
     header a#key-settings:hover { text-decoration:underline; }
+    .notice { border:1px solid var(--warn); background:#fdf6ec; color:var(--warn); border-radius:8px; padding:0.7rem 1rem; font-size:0.9rem; margin-bottom:1rem; }
 
     .opp { border:1px solid var(--line); border-radius:8px; padding:0.9rem 1.1rem; margin-bottom:0.75rem; }
     .opp h3 { margin:0 0 0.2rem; font-size:1rem; }
@@ -38,10 +39,10 @@
     .opp .row { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
     .opp .row select { width:auto; padding:0.35rem 0.5rem; font-size:0.85rem; }
     .badge { display:inline-block; font-size:0.72rem; padding:0.1rem 0.5rem; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
-    .badge.new { border-color:var(--accent); color:var(--accent); }
-    .badge.pursuing { border-color:var(--good); color:var(--good); }
-    .badge.reviewing { border-color:var(--warn); color:var(--warn); }
-    .badge.dismissed { border-color:var(--line); color:var(--muted); }
+    .badge.green { border-color:var(--good); color:var(--good); }
+    .badge.amber { border-color:var(--warn); color:var(--warn); }
+    .badge.red { border-color:var(--bad); color:var(--bad); }
+    .badge.outcome { background:#eef3f8; border-color:var(--accent); color:var(--accent); }
     .tag { display:inline-block; font-size:0.72rem; background:#eef3f8; color:var(--accent); border-radius:4px; padding:0.05rem 0.4rem; margin-right:0.3rem; }
 
     #detail .back { margin-bottom:1rem; }
@@ -51,12 +52,17 @@
     .msg.user .body { font-weight:500; }
     .msg .body { white-space:pre-wrap; font-size:0.92rem; }
     .draft { white-space:pre-wrap; font-size:0.92rem; border:1px solid var(--line); border-radius:8px; padding:1rem 1.2rem; background:#fcfbf9; max-height:480px; overflow-y:auto; }
+    .flag { font-size:0.88rem; padding:0.4rem 0; border-bottom:1px solid var(--line); }
+    .flag:last-child { border-bottom:none; }
+    .flag .kind { font-weight:600; font-size:0.8rem; }
+    .fp { background:#fcfbf9; border:1px solid var(--line); border-radius:8px; padding:0.8rem 1rem; font-size:0.9rem; }
+    .fp .lbl { font-weight:600; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.04em; color:var(--muted); margin-top:0.5rem; }
     .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 1rem; }
     @media (max-width:640px){ .grid2 { grid-template-columns:1fr; } }
     details.settings > summary { cursor:pointer; font-weight:600; font-size:1.05rem; }
-    .doc { display:flex; justify-content:space-between; align-items:center; padding:0.45rem 0; border-bottom:1px solid var(--line); font-size:0.92rem; }
-    .doc:last-child { border-bottom:none; }
-    .doc .kind { color:var(--muted); font-size:0.8rem; }
+    .doc, .src { display:flex; justify-content:space-between; align-items:center; padding:0.45rem 0; border-bottom:1px solid var(--line); font-size:0.92rem; gap:0.5rem; }
+    .doc:last-child, .src:last-child { border-bottom:none; }
+    .doc .kind, .src .kind { color:var(--muted); font-size:0.8rem; }
   </style>
 </head>
 <body>
@@ -72,9 +78,14 @@
     <!-- ═══ LIST VIEW ═══ -->
     <div id="list-view">
 
+      <div id="db-notice" class="notice" style="display:none">
+        The opportunity pipeline needs a database and none is configured (hosted installs get one automatically —
+        locally, set <code>DATABASE_URL</code> in <code>.env</code>). Documents, discussion and the API-key screen still work.
+      </div>
+
       <div class="card">
         <h2>Scan for opportunities</h2>
-        <p class="help">Searches the live web for currently-open calls, corporate and philanthropic openings — matched against your profile and search criteria below, each with a written case for why it fits you.</p>
+        <p class="help">Searches the live web — your source list first — for currently-open calls, corporate and philanthropic openings. Each find is extracted, scored against your criteria (green / amber / red, with the reason), and evidenced with an honest fit note.</p>
         <button class="primary" id="scan-btn">Scan the web now</button>
         <span id="scan-status" class="status-line" style="margin-left:0.75rem"></span>
       </div>
@@ -86,7 +97,7 @@
 
       <div class="card">
         <h2>Add one you found yourself</h2>
-        <p class="help">Paste the call text, an email, or a description (include the URL if you have it) — it gets the same honest fit assessment as scanned ones.</p>
+        <p class="help">Paste the call text, an email, or a description (include the URL if you have it) — it goes through the same extraction, scoring and honest fit assessment.</p>
         <textarea id="assess-text" placeholder="Paste the opportunity here…"></textarea>
         <div style="margin-top:0.75rem">
           <button class="primary" id="assess-btn">Assess the fit</button>
@@ -95,9 +106,25 @@
       </div>
 
       <div class="card">
+        <details class="settings" id="sources-details">
+          <summary>Your source list — the places you look</summary>
+          <p class="help">Funding portals, donor newsletters, foundation pages. The scan checks these first; each keeps honest seen/new counts.</p>
+          <div id="sources"><span class="status-line">Loading…</span></div>
+          <div class="grid2">
+            <div><label>Name</label><input type="text" id="src-name" placeholder="e.g. FundsForNGOs — health" /></div>
+            <div><label>URL</label><input type="text" id="src-location" placeholder="https://…" /></div>
+          </div>
+          <div style="margin-top:0.75rem">
+            <button class="primary" id="src-btn">Add source</button>
+            <span id="src-status" class="status-line" style="margin-left:0.75rem"></span>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
         <details class="settings" id="criteria-details">
           <summary>Search criteria — who you are and what to look for</summary>
-          <p class="help">This is the adjustable backend. As your strategy shifts — new sectors, new business models, new themes — change it here and the next scan reflects it. Everything is optional, but the scan is only as good as what it knows.</p>
+          <p class="help">This is the adjustable backend. As your strategy shifts — new sectors, new business models, new themes — change it here: the next scan reflects it AND the scoring rules regenerate. No code change, ever.</p>
           <label>Who you are (in your own words)</label>
           <textarea id="c-identity" placeholder="e.g. We specialise in working with marginalised groups on human rights issues…"></textarea>
           <label>Current resource-mobilisation strategy</label>
@@ -144,10 +171,21 @@
 
     </div>
 
-    <!-- ═══ DETAIL VIEW (one opportunity: discuss + draft) ═══ -->
+    <!-- ═══ DETAIL VIEW (one opportunity: evidence, funder, discuss, draft) ═══ -->
     <div id="detail" style="display:none">
       <button class="ghost back" id="back-btn">← All opportunities</button>
       <div class="card" id="detail-head"></div>
+
+      <div class="card">
+        <h2>What the funder stands for</h2>
+        <p class="help">Their priorities in their own repeated words — so your proposal can mirror the language where it's true of you.</p>
+        <div id="funder-profile"><span class="empty">Not analysed yet.</span></div>
+        <div style="margin-top:0.6rem">
+          <button class="primary" id="fp-btn">Analyse this funder</button>
+          <span id="fp-status" class="status-line" style="margin-left:0.75rem"></span>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Discuss it</h2>
         <p class="help">Ask anything — eligibility doubts, angle, risks. Answers are grounded in your profile, criteria and documents.</p>
@@ -158,9 +196,10 @@
           <span id="chat-status" class="status-line" style="margin-left:0.75rem"></span>
         </div>
       </div>
+
       <div class="card">
         <h2>Proposal draft</h2>
-        <p class="help">A working draft from your own material. Gaps appear as [FILL IN: …] — a human finishes and verifies every claim before anything is submitted.</p>
+        <p class="help">Structure derived from this call, always with M&amp;E, sustainability, a balanced budget table and a workplan. Gaps appear as [FILL IN: …] — a human finishes and verifies every claim before anything is submitted.</p>
         <div id="proposal-box"><span class="empty">No draft yet.</span></div>
         <label>Instructions for this pass (optional)</label>
         <textarea id="proposal-instructions" placeholder="e.g. Lead with the 2023 youth programme results; keep it under two pages."></textarea>

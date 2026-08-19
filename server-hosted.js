@@ -20,6 +20,7 @@ import { dirname, join } from 'node:path';
 import { createHostedServer } from '@developai/grounded-node-runtime';
 import * as handlers from './lib/handlers.js';
 import { mountAppRoutes } from './lib/routes.js';
+import { ensureSchema } from './lib/schema.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
@@ -28,6 +29,8 @@ await createHostedServer({
   slug: 'resources',
   productName: 'Resources',
   handlers,
+  ensureSchema: (pool) => ensureSchema(pool),   // engine-standard tables in the `resources` schema
+
   mountRoutes: (app, { hostFor }) => {
     // MUST-HAVE: keep the chrome-injected app shell uncached, or browsers
     // heuristically cache index.html and your UI updates won't show until a
