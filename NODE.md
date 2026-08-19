@@ -1,5 +1,13 @@
 # Node identity card — Resources
 
+> **STATUS: ON HOLD — do not publish, deploy, or card on the front door.**
+> Held 2026-08-19 against the GROUNDED vision: the Opportunity Finder is ONE
+> shared engine (LeadFinder carries the fuller pipeline — finish L2B first,
+> extract the engine from there), and PV's tenant may not go live before Caili
+> approves their concept note. This scaffold's criteria/discussion/proposal
+> work is the feature seed to fold into that engine, not a product to ship.
+> No GitHub repo exists; no nodes.json entry; nothing on the box.
+
 - **Slug:** `resources`
 - **Display name:** Resources
 - **Repo:** `pauldevelopai/node-resources`

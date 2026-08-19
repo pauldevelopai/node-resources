@@ -1,5 +1,9 @@
 # node-resources — Resources (GROUNDED Node)
 
+> **ON HOLD — see NODE.md.** Do not create the GitHub repo, add the nodes.json
+> card, or deploy. PV is gated on Caili's concept-note approval, and this
+> functionality belongs in the shared Opportunity Finder engine (seed: LeadFinder).
+
 Resource mobilisation for an organisation: find funding/partnership opportunities
 that fit them, explain why, discuss each one, and draft proposals from their own
 material. First user: PV. Built from `node-template`; runs **locally** (own AI key,
