@@ -17,11 +17,13 @@ process.env.GROUNDED_HOSTED = '1';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import cron from 'node-cron';
 import { createHostedServer } from '@developai/grounded-node-runtime';
 import * as handlers from './lib/handlers.js';
 import { mountAppRoutes } from './lib/routes.js';
 import { ensureSchema } from './lib/schema.js';
 import { mountMcp, mountMcpKeyRoutes, ensureMcpSchema } from './lib/mcp.js';
+import { sweepAllTenants } from './lib/nightly.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
@@ -53,4 +55,16 @@ await createHostedServer({
   },
   nodeVersion: pkg.version,
   staticDir: join(__dirname, 'public'),
+});
+
+// Nightly (03:30) funding sweep — the job that makes the morning shortlist
+// exist instead of only appearing when someone asks. Half an hour after
+// LeadFinder's 03:00 so the two Nodes don't hit the shared database and the
+// model API at the same moment. A tenant with no themes in its profile is
+// skipped and says so (a themeless search returns noise, not leads).
+cron.schedule('30 3 * * *', async () => {
+  try {
+    const r = await sweepAllTenants();
+    console.log(`[resources nightly] done — tenants=${r.tenants} found=${r.found} kept=${r.kept} errors=${r.errors}`);
+  } catch (e) { console.error('[resources nightly]', e.message); }
 });
