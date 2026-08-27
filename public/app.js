@@ -44,6 +44,7 @@
     renderSources(r.sources || []);
     renderDocs(r.docs || []);
     fillCriteria(r.criteria || {});
+    renderRules(r.rules || null);
   }
 
   // ─── Scan ──────────────────────────────────────────────────────────
@@ -166,8 +167,70 @@
     loadOverview();
   }
 
+  // ─── The rules panel ───────────────────────────────────────────────
+  // "PV can see and change the rules at any time" — so show the real stored
+  // config, not a description of it, and let the weights and bands be edited.
+  function renderRules(rules) {
+    const box = $('#rules');
+    if (!rules) {
+      box.innerHTML = '<span class="empty">Rules appear once your criteria are saved — that is what creates them.</span>';
+      return;
+    }
+    const t = rules.thresholds || {};
+    box.innerHTML = `
+      ${rules.components.map((c) => `
+        <div class="rule" data-component="${escapeHtml(c.component)}">
+          <div class="top">
+            <span class="nm">${escapeHtml(c.label)}</span>
+            ${c.hard ? '<span class="badge hard">can reject outright</span>' : ''}
+            <span style="flex:1"></span>
+            <label style="margin:0;font-weight:400;font-size:0.8rem;color:var(--muted)">counts for</label>
+            <input type="number" data-act="weight" min="0" max="10" step="0.5" value="${c.weight}" />
+            <span class="share">${c.share}% of the score</span>
+          </div>
+          <div class="detail">${escapeHtml(c.detail)}</div>
+        </div>`).join('')}
+      <div class="bands">
+        <div>
+          <label>Green at or above</label>
+          <input type="number" id="r-green" min="0" max="100" step="1" value="${t.green_min}" />
+        </div>
+        <div>
+          <label>Red at or below</label>
+          <input type="number" id="r-red" min="0" max="100" step="1" value="${t.red_max}" />
+        </div>
+        <div style="flex:1;min-width:12rem">
+          <p class="help" style="margin:0">Anything between the two lands in amber for review. Version ${rules.version} is in force; saving creates the next one and leaves the old scores traceable.</p>
+        </div>
+      </div>
+      <div style="margin-top:0.9rem">
+        <button class="primary" id="rules-btn">Save rules</button>
+        <span id="rules-status" class="status-line" style="margin-left:0.75rem"></span>
+      </div>`;
+    $('#rules-btn').addEventListener('click', saveRules);
+  }
+
+  async function saveRules() {
+    const btn = $('#rules-btn'), status = $('#rules-status');
+    const weights = [...document.querySelectorAll('#rules .rule')].map((el) => ({
+      component: el.dataset.component,
+      weight: parseFloat(el.querySelector('[data-act=weight]').value),
+    }));
+    btn.disabled = true; status.textContent = 'Saving…';
+    try {
+      const r = await postJson('api/rules', {
+        weights,
+        thresholds: { green_min: parseFloat($('#r-green').value), red_max: parseFloat($('#r-red').value) },
+      });
+      if (!r.ok) { status.textContent = r.message || r.error || 'Could not save the rules.'; return; }
+      renderRules(r.rules);
+      $('#rules-status').textContent = `Saved as version ${r.version}. The next scan scores with these.`;
+    } catch (e) { status.textContent = 'Network error: ' + e.message; }
+    finally { const b = $('#rules-btn'); if (b) b.disabled = false; }
+  }
+
   // ─── Criteria ──────────────────────────────────────────────────────
-  const CRIT_FIELDS = ['identity', 'strategy', 'themes', 'geographies', 'donor_types', 'keywords', 'eligibility', 'exclusions'];
+  const CRIT_FIELDS = ['identity', 'strategy', 'themes', 'geographies', 'donor_types', 'keywords', 'eligibility', 'exclusions', 'exclusion_terms'];
 
   function fillCriteria(c) {
     for (const f of CRIT_FIELDS) {
@@ -188,6 +251,9 @@
       status.textContent = r.ok
         ? (r.scoringRefreshed ? 'Saved — scan targeting AND scoring rules updated.' : 'Saved. The next scan uses this.')
         : (r.message || r.error || 'Could not save.');
+      // Show the regenerated rules straight away — the panel is the proof that
+      // a criteria edit really did change the scoring.
+      if (r.ok && r.rules) renderRules(r.rules);
     } catch (e) { status.textContent = 'Network error: ' + e.message; }
     finally { btn.disabled = false; }
   }

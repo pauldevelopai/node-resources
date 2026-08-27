@@ -18,9 +18,11 @@ Runs local (own key + own Postgres) and hosted (multi-tenant) from one code path
   engine's new `items_green/amber/red` names.
 - **`lib/engine.js`** — the wiring: `tenantOf` (JWT newsroom_id →
   team_members, fail closed; local = zero-UUID), `STARTER_FUNDING_CRITERIA`
-  (seed), `refreshCriteriaFromForm` (criteria card → new active version;
-  weights/thresholds carry over), `pipelineFor(orgContext)` (per-request
-  pipeline — checkpoint 2 embeds tenant context).
+  (seed), `mergedBase` (the migration path — see below), `refreshCriteriaFromForm`
+  (criteria card → new active version), `saveRules` (rules panel → new active
+  version), `describeCriteria`/`describeRule` (the rules in plain English),
+  `pipelineFor(orgContext)` (per-request pipeline — checkpoint 2 embeds tenant
+  context).
 - **`lib/extract.js`** — the prompts (consumer config): call-field extraction,
   per-tenant evidence/fit, and `extractFunderProfile` (deck step 2 — the
   funder's own language, web-search assisted).
@@ -55,6 +57,27 @@ Runs local (own key + own Postgres) and hosted (multi-tenant) from one code path
   hosted, an explicit name locally.
 - **Criteria are config.** The card edit regenerates scoring rules — never a
   redeploy (vision layer 3).
+- **The org can SEE the rules, not just change them.** The rules panel
+  (`/api/rules`, `describeCriteria`) reads out the stored criteria version:
+  every component, its weight and share of the score, whether it can reject
+  outright, and what it actually matches on — in plain English generated FROM
+  the config, never a hand-written description that could drift from it. The
+  panel edits weights and the green/red thresholds; the criteria card still
+  decides what each rule looks for.
+- **Exclusions are arithmetic, not just prose** (needs engine ≥ v0.2.0). The
+  card's `exclusion_terms` become a `keyword_none` rule in the `exclusions`
+  component, which is in `hard_rules` — a ruled-out funder routes red however
+  well it scores. The prose `exclusions` field stays, and still grounds the AI.
+  Whole-word matching, so "arms" does not bin the Armstrong Foundation; an
+  empty list excludes nothing.
+- **`mergedBase` is the migration path — keep it.** Both writers start from
+  `STARTER_FUNDING_CRITERIA` and overlay the tenant's active version, so a
+  tenant whose criteria predate a component picks it up on their next save.
+  Two traps it exists to avoid, both found by test: overlaying only the weight
+  BLANKS the tenant's keyword lists (themes/geographies/exclusions) on every
+  rules-panel save, and spreading old thresholds over new ones silently drops a
+  newly-hard component from `hard_rules`. Weights carry over, keyword lists
+  carry over, rule SHAPE comes from the starter, hard rules are unioned.
 - **A find is credited to the source it came from.** The org's source list
   promises a running count per source, so `/api/scan` matches every candidate
   URL back to a listed source (host match, `www`-insensitive, subdomain-
@@ -64,7 +87,10 @@ Runs local (own key + own Postgres) and hosted (multi-tenant) from one code path
   — do NOT go back to one batch-level sourceId, which parked every count on
   `Web scan` and left the org's own sources reading a permanent `seen 0/new 0`.
   The scan response carries `attribution` (per named source) and the UI says it.
-- Engine dep pinned `#v0.1.0`. **Runtime is still pinned v0.15.0 while v0.16.0
+- Engine dep pinned `#v0.2.0` (`keyword_none`). **That tag exists locally and
+  is NOT pushed** — `git push origin main --tags` in
+  `grounded-opportunity-engine` before any deploy or fresh `npm install` here,
+  or the install fails on an unknown ref. Runtime is still pinned v0.15.0 while v0.16.0
   (host.corpus) is tagged and available** — so today `corpusAdd` honestly
   reports "runtime has no host.corpus yet", `corpus_record_id` stays null, and
   therefore the "Mark human-verified" button never renders and

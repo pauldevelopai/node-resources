@@ -14,7 +14,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "@developai/grounded-node-runtime": "github:pauldevelopai/grounded-node-runtime#v0.15.0",
-    "@developai/grounded-opportunity-engine": "github:pauldevelopai/grounded-opportunity-engine#v0.1.0",
+    "@developai/grounded-opportunity-engine": "github:pauldevelopai/grounded-opportunity-engine#v0.2.0",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^3.0.3",
     "pg": "^8.13.1"

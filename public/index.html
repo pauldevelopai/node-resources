@@ -63,6 +63,18 @@
     .doc, .src { display:flex; justify-content:space-between; align-items:center; padding:0.45rem 0; border-bottom:1px solid var(--line); font-size:0.92rem; gap:0.5rem; }
     .doc:last-child, .src:last-child { border-bottom:none; }
     .doc .kind, .src .kind { color:var(--muted); font-size:0.8rem; }
+
+    .rule { padding:0.6rem 0; border-bottom:1px solid var(--line); }
+    .rule:last-of-type { border-bottom:none; }
+    .rule .top { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; }
+    .rule .nm { font-weight:600; font-size:0.92rem; }
+    .rule .detail { font-size:0.87rem; color:var(--muted); margin-top:0.25rem; }
+    .rule input[type=number] { width:5rem; padding:0.3rem 0.4rem; font-size:0.85rem; }
+    .rule .share { font-size:0.78rem; color:var(--muted); }
+    .badge.hard { border-color:var(--bad); color:var(--bad); }
+    .bands { display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end; margin-top:0.9rem; }
+    .bands label { margin:0 0 0.25rem; }
+    .bands input[type=number] { width:6rem; padding:0.4rem 0.5rem; }
   </style>
 </head>
 <body>
@@ -139,10 +151,21 @@
           <textarea id="c-eligibility" placeholder="What you are (and aren't) eligible for — registration, size, track record…"></textarea>
           <label>What you will NOT pursue</label>
           <textarea id="c-exclusions" placeholder="Funders or conditions you won't take."></textarea>
+          <label>Funders and terms to rule out <span style="font-weight:400;color:var(--muted)">— comma-separated, and enforced</span></label>
+          <input type="text" id="c-exclusion_terms" placeholder="e.g. tobacco, arms, gambling, Acme Foundation" />
+          <p class="help" style="margin:0.3rem 0 0">Anything named here is rejected outright: a call mentioning it goes red whatever else it scores. Whole words only, so “arms” will not catch “Armstrong”.</p>
           <div style="margin-top:0.75rem">
             <button class="primary" id="criteria-btn">Save criteria</button>
             <span id="criteria-status" class="status-line" style="margin-left:0.75rem"></span>
           </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <details class="settings" id="rules-details">
+          <summary>How opportunities are scored — the rules</summary>
+          <p class="help">Arithmetic does the scoring; the AI only reads the call and quotes it. These are the exact rules in force, and you can change what each one counts for. The criteria card above decides what they look for.</p>
+          <div id="rules"><span class="status-line">Loading…</span></div>
         </details>
       </div>
 

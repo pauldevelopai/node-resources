@@ -68,8 +68,19 @@
 ## Criteria = config, never a redeploy
 The criteria card saves prose (grounds every AI call, via host.store) AND
 regenerates the tenant's ACTIVE engine criteria version: themes+keywords →
-`theme_fit` rule, geographies → `geography_fit`. Weights/thresholds carry over
-from the previous version; history is never rewritten.
+`theme_fit` rule, geographies → `geography_fit`, exclusion terms →
+`exclusions` (a `keyword_none` HARD rule — a ruled-out funder routes red
+whatever else it scores). Weights/thresholds carry over from the previous
+version; history is never rewritten.
+
+## The rules panel — "see and change the rules at any time"
+`How opportunities are scored` reads out the active criteria version: each
+component's weight, its share of the score, whether it can reject outright, and
+what it matches on, described FROM the stored config rather than hand-written.
+It edits the weights and the green/red thresholds; saving creates the next
+version, so past scores stay traceable to the rules that produced them.
+Validation refuses a red threshold at or above green, weights outside 0–10, and
+an all-zero set.
 
 ## Run
 - Local: `npm start` — full app needs `DATABASE_URL` (Postgres); without it the
