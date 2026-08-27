@@ -32,7 +32,9 @@
 
 ## The flow (deck-aligned: TRF "AI for funding proposals", 7 steps)
 1. **Sources card** — the places the org already looks (step 1). Scan checks
-   them first; honest seen/new counts per source.
+   them first (as priority places in the discovery prompt), and every find is
+   credited to the listed source its URL came from, so the per-source seen/new
+   counts are real. Finds from elsewhere on the web are credited to `Web scan`.
 2. **Scan** — live web discovery grounded in profile + criteria, then every
    candidate through the engine pipeline: extract (checkpoint 1) → score
    (green/amber/red + reason) → evidence + honest fit note (checkpoint 2) →
@@ -50,7 +52,18 @@
    pushed to the corpus record (`setOutcome`). Outcome data is the most
    valuable thing collected.
 7. **Verification** — "Mark human-verified" flips the corpus record via
-   `host.corpus.verify(id, namedPerson)`.
+   `host.corpus.verify(id, namedPerson)`. Dark until the runtime pin moves to
+   v0.16.0 (the button is gated on `corpus_record_id`).
+8. **Overnight sweep (V1)** — 03:30 per-tenant sweep of the wired feed against
+   the tenant's own themes, capped by `RESOURCES_NIGHTLY_CAP`. A tenant with no
+   themes is skipped and says so.
+
+## Not in V1
+- **MCP connector** (`lib/mcp.js`) — built, mounted only when `RESOURCES_MCP=1`.
+  V2, per tenant, on written agreement: it exposes the funding pipeline to
+  claude.ai / ChatGPT via a URL-borne bearer key. No UI references it.
+- **Alerts and document export** — absent by design; the note prices them as
+  second-version work. Drafts leave via the clipboard and are finished in Word.
 
 ## Criteria = config, never a redeploy
 The criteria card saves prose (grounds every AI call, via host.store) AND

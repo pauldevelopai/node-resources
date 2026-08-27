@@ -28,13 +28,25 @@ import { sweepAllTenants } from './lib/nightly.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf8'));
 
+// The MCP connector is a V2 feature, OFF by default.
+//
+// V1 is what the client's concept note describes: a browser tool behind a
+// sign-in, the org's material used to ground its own answers and drafts. The
+// connector is a different promise — it puts the whole funding pipeline
+// (search, call detail, profile read AND write, outcome logging, live scan)
+// inside claude.ai or ChatGPT, authenticated by a bearer key that rides in the
+// URL. That is third-party egress of client data, so it ships when a client has
+// agreed to it in writing, not by default. The code stays wired: set
+// RESOURCES_MCP=1 in the box .env to turn it on for a tenant that has.
+const MCP_ENABLED = process.env.RESOURCES_MCP === '1';
+
 await createHostedServer({
   slug: 'resources',
   productName: 'Resources',
   handlers,
   ensureSchema: async (pool) => {
-    await ensureSchema(pool);      // engine-standard tables in the `resources` schema
-    await ensureMcpSchema(pool);   // connector keys + usage log
+    await ensureSchema(pool);                            // engine-standard tables in the `resources` schema
+    if (MCP_ENABLED) await ensureMcpSchema(pool);        // connector keys + usage log (V2)
   },
 
   mountRoutes: (app, { hostFor }) => {
@@ -47,11 +59,16 @@ await createHostedServer({
     });
     // Your custom routes (per-request, newsroom-scoped host via hostFor).
     mountAppRoutes(app, hostFor);
-    // Connector key management (inside the cookie-authed /api surface)…
-    mountMcpKeyRoutes(app, hostFor);
-    // …and the MCP front door, which authenticates with its own bearer key
-    // (claude.ai / ChatGPT carry no tracker cookie), so it mounts outside /api.
-    mountMcp(app, hostFor);
+    if (MCP_ENABLED) {
+      // Connector key management (inside the cookie-authed /api surface)…
+      mountMcpKeyRoutes(app, hostFor);
+      // …and the MCP front door, which authenticates with its own bearer key
+      // (claude.ai / ChatGPT carry no tracker cookie), so it mounts outside /api.
+      mountMcp(app, hostFor);
+      console.log('[resources] MCP connector ENABLED (RESOURCES_MCP=1).');
+    } else {
+      console.log('[resources] MCP connector off (V2) — set RESOURCES_MCP=1 to enable.');
+    }
   },
   nodeVersion: pkg.version,
   staticDir: join(__dirname, 'public'),
