@@ -2,7 +2,7 @@
   "name": "node-resources",
   "version": "0.1.0",
   "private": true,
-  "description": "GROUNDED Node \u2014 Resources: finds funding and partnership opportunities matched to your organisation, explains why each one fits, lets you interrogate them, and helps draft the proposal.",
+  "description": "GROUNDED Node — Resources: finds funding and partnership opportunities matched to your organisation, explains why each one fits, lets you interrogate them, and helps draft the proposal.",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -10,14 +10,14 @@
     "start:hosted": "node server-hosted.js",
     "update": "node update.mjs"
   },
-  "comment_engine_dep": "Runtime pin moves to v0.16.0 when that tag lands (host.corpus lights up automatically).",
+  "comment_engine_dep": "runtime v0.16.0 IS tagged (host.corpus). Bumping this pin lights up corpus write-back and the human-verify button, which are dark on v0.15.0 — no other change needed.",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
     "@developai/grounded-node-runtime": "github:pauldevelopai/grounded-node-runtime#v0.15.0",
     "@developai/grounded-opportunity-engine": "github:pauldevelopai/grounded-opportunity-engine#v0.1.0",
-    "@anthropic-ai/sdk": "^0.32.1",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.13.1",
-    "node-cron": "^3.0.3"
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.1"
   },
   "license": "Apache-2.0"
 }
