@@ -55,10 +55,16 @@
       const r = await postJson('api/scan', {});
       if (!r.ok) { status.textContent = r.message || r.error || 'Scan failed. Try again.'; return; }
       const d = r.digest || {};
-      status.textContent = d.new
+      // Credit the org's own sources by name when they produced something —
+      // the counts on the sources card move at the same time.
+      const from = (r.attribution || []).length
+        ? ' From your sources: ' + r.attribution.map((a) => `${a.source} (${a.new} new of ${a.seen})`).join(', ') + '.'
+        : '';
+      status.textContent = (d.new
         ? `Done: ${d.new} new (${d.green} green, ${d.amber} amber, ${d.red} red), ${d.duplicate} already known${r.corpusWritten ? `, ${r.corpusWritten} written to the corpus` : ''}.`
-        : `Done — nothing new this time (${d.duplicate || 0} already known). Try widening the criteria.`;
+        : `Done — nothing new this time (${d.duplicate || 0} already known). Try widening the criteria.`) + from;
       renderOpportunities(r.opportunities || []);
+      refreshSources();   // the per-source counts just moved — show them
     } catch (e) { status.textContent = 'Network error: ' + e.message; }
     finally { btn.disabled = !dbReady; }
   }
@@ -82,6 +88,13 @@
   async function refreshOpportunities() {
     const r = await fetchJson('api/overview').catch(() => null);
     if (r && r.ok) renderOpportunities(r.opportunities || []);
+  }
+
+  // Sources only — deliberately NOT loadOverview(), which would refill the
+  // criteria form and discard anything typed there but not yet saved.
+  async function refreshSources() {
+    const r = await fetchJson('api/overview').catch(() => null);
+    if (r && r.ok) renderSources(r.sources || []);
   }
 
   // ─── Opportunity list ──────────────────────────────────────────────
