@@ -13,7 +13,7 @@
   "comment_engine_dep": "runtime v0.16.0 IS tagged (host.corpus). Bumping this pin lights up corpus write-back and the human-verify button, which are dark on v0.15.0 — no other change needed.",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
-    "@developai/grounded-node-runtime": "github:pauldevelopai/grounded-node-runtime#v0.15.0",
+    "@developai/grounded-node-runtime": "github:pauldevelopai/grounded-node-runtime#v0.17.0",
     "@developai/grounded-opportunity-engine": "github:pauldevelopai/grounded-opportunity-engine#v0.2.0",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^3.0.3",
