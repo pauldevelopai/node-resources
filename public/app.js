@@ -230,7 +230,7 @@
   }
 
   // ─── Criteria ──────────────────────────────────────────────────────
-  const CRIT_FIELDS = ['identity', 'strategy', 'themes', 'geographies', 'donor_types', 'keywords', 'eligibility', 'exclusions', 'exclusion_terms'];
+  const CRIT_FIELDS = ['identity', 'strategy', 'themes', 'geographies', 'donor_types', 'keywords', 'eligibility', 'exclusions', 'exclusion_terms', 'amount_min', 'amount_max'];
 
   function fillCriteria(c) {
     for (const f of CRIT_FIELDS) {

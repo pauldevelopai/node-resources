@@ -146,7 +146,10 @@
             <div><label>Where you work</label><input type="text" id="c-geographies" placeholder="countries / regions" /></div>
             <div><label>Funder types to pursue</label><input type="text" id="c-donor_types" placeholder="institutional, corporate, philanthropic" /></div>
             <div><label>Extra search terms</label><input type="text" id="c-keywords" placeholder="anything else to search for" /></div>
+            <div><label>Smallest grant worth your time</label><input type="text" id="c-amount_min" inputmode="numeric" placeholder="e.g. 500000" /></div>
+            <div><label>Largest you could absorb</label><input type="text" id="c-amount_max" inputmode="numeric" placeholder="e.g. 3000000" /></div>
           </div>
+          <p class="help" style="margin:0.3rem 0 0">Plain numbers, no currency or “k”. Leave both blank and grant size is not scored at all — it never guesses a range for you. A call that doesn't state an amount counts as unknown, never as too small.</p>
           <label>Eligibility notes</label>
           <textarea id="c-eligibility" placeholder="What you are (and aren't) eligible for — registration, size, track record…"></textarea>
           <label>What you will NOT pursue</label>
