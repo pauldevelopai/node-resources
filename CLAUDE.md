@@ -31,7 +31,12 @@ Runs local (own key + own Postgres) and hosted (multi-tenant) from one code path
 - **`lib/claude.js`** — the injected model call (env key, 429 retry,
   webSearch support). The engine never owns a key.
 - **`lib/context.js`** — prose criteria card + org docs + shared profile →
-  the grounding block every AI call gets.
+  the grounding block every AI call gets. Takes the org's store as an argument
+  (see `lib/store.js`) rather than reaching for `host.store`.
+- **`lib/store.js`** — the org's key/value store, keyed on the NEWSROOM instead
+  of the signed-in user. `host.store` is per-user, which split a client's team;
+  this is the fix. Read it before touching anything that reads the criteria
+  card, documents, chats or proposals.
 - **`lib/routes.js`** — the surface: overview, criteria, sources, scan,
   assess, opportunity (+flags/chat/proposal), status, **outcome** (named
   person → corpus setOutcome), **verify** (named person → corpus verify),
@@ -89,15 +94,53 @@ Runs local (own key + own Postgres) and hosted (multi-tenant) from one code path
   — do NOT go back to one batch-level sourceId, which parked every count on
   `Web scan` and left the org's own sources reading a permanent `seen 0/new 0`.
   The scan response carries `attribution` (per named source) and the UI says it.
-- Engine dep pinned `#v0.2.0` (`keyword_none`). **That tag exists locally and
-  is NOT pushed** — `git push origin main --tags` in
-  `grounded-opportunity-engine` before any deploy or fresh `npm install` here,
-  or the install fails on an unknown ref. Runtime is still pinned v0.15.0 while v0.16.0
+- Engine dep pinned `#v0.2.0` (`keyword_none`); the tag is pushed (2026-09-07),
+  so a fresh `npm install` here resolves. Runtime is still pinned v0.15.0 while v0.16.0
   (host.corpus) is tagged and available** — so today `corpusAdd` honestly
   reports "runtime has no host.corpus yet", `corpus_record_id` stays null, and
   therefore the "Mark human-verified" button never renders and
   `/api/opportunities/verify` always refuses. Outcomes still record locally.
   Bumping the pin lights all of it up; nothing else to change.
+
+## Tenancy: BOTH halves keyed on the newsroom (fixed 2026-09-07)
+
+The runtime keys `host.store` on the **signed-in user** —
+`grounded-node-runtime/src/server-hosted.js`: `const tenantOf = (u) => String(u.id)`.
+This Node kept four ORG-level things there (criteria card, documents, chats,
+proposal drafts) while its Postgres tables were correctly per-newsroom, so a
+client's team split down the middle: one colleague filled the criteria card,
+the next signed in to an empty one and the scan refused outright — and if they
+filled it, they silently redefined the whole newsroom's scoring.
+
+Fixed in-Node, not in the runtime: `lib/store.js` provides `tenantStore()` over
+`resources.tenant_store`, keyed on the newsroom id `tenantOf` already resolves.
+`orgStore(host, id)` returns it when a pool exists and falls back to
+`host.store` only on a DB-less LOCAL install, where there is one person anyway.
+The context helpers take the store as an argument now rather than reaching for
+`host.store` themselves, so the keying is visible at every call site.
+
+**Doing it here was the cheap option and the window is closing.** The tracker's
+CLAUDE.md records the runtime's per-user keying as an open data decision rather
+than a bug to quietly fix, because rekeying would orphan rows live Nodes have
+already written. This Node has written none — it has never been deployed. Once
+PV is live on it, this stops being free.
+
+Two things fell out of the same fix:
+- **The 03:30 sweep had never worked.** `nightly.js` hand-rolled a reader
+  against the runtime's `node_resources_store` using a column called `kind`;
+  that table's column is `collection`, so the query threw every time — into a
+  `.catch(() => ({ rows: [] }))` that turned the error into "this org has set
+  no criteria". Every night it logged "no themes in the profile — skipping" and
+  did nothing, looking exactly like a tenant who hadn't finished onboarding.
+- **MCP and the web UI were reading different stores.** `mcp.js` worked around
+  the per-user keying by faking `user.id = newsroomId`, so it read the runtime
+  table keyed on the newsroom while the routes read it keyed on the user.
+  Criteria set in the UI were invisible over MCP and vice versa. Both now go
+  through `orgStore`.
+
+Verified against a real Postgres, two users in one org: before, A had the card
+and B was blocked; after, both see the same card, documents and grant range,
+and a third org stays isolated.
 
 ## Criteria the client hasn't sent yet (2026-09-07)
 
