@@ -104,6 +104,44 @@ Runs local (own key + own Postgres) and hosted (multi-tenant) from one code path
   `host.corpus?.add`, so it degrades honestly if a Node is ever run against an
   older runtime.
 
+## Tests (`npm test`) — 51, no dependencies
+
+`node --test` only, no framework, matching the engine's zero-dependency rule.
+They cover the three invariants that fail **invisibly** — nothing throws, no
+route 500s, the scoring just quietly goes wrong and a client wonders why their
+shortlist looks off:
+
+- **`test/criteria.test.js`** — `grant_size` ships inert: identical total and
+  band with and without it. Weight follows configuration (a range raises the
+  weight, clearing it stands the component down, a weight the org tuned itself
+  survives). And an unstated amount scores as *unknown*, never as too small.
+- **`test/merge.test.js`** — drives the real `saveRules` /
+  `refreshCriteriaFromForm` against a stub pool and asserts what would have been
+  persisted. Guards the trap that already sprang once: `mergedBase` resets each
+  rule to the starter's shape, so dropping the bounds carry leaves a WEIGHTED
+  UNBOUNDED range — free marks on every call.
+- **`test/store.test.js`** — org state is keyed on the newsroom, never the
+  signed-in user. A stub pool records the bound parameters, so it asserts which
+  id each query actually uses. Also that two users at one newsroom key
+  identically, two newsrooms don't, and the DB-less local fallback still works.
+  A live-Postgres integration test runs when `RESOURCES_TEST_DATABASE_URL` is
+  set and skips honestly otherwise.
+- **`test/amount.test.js`** — `toAmount` refuses anything it would have to guess
+  at. Pins the asymmetry that matters: a wrong number is far worse than no
+  number, because "ZAR 1.5 million" read as 1.5 routes a good grant red where
+  null merely scores it "not stated".
+
+**They were mutation-tested, which is the only reason to trust them.** Breaking
+each invariant on purpose fails the suite: dropping the bounds carry (1 failure),
+giving `grant_size` a non-zero starter weight (2), making `toAmount` "helpful"
+(7), pointing the store at the runtime's per-user table (1). A test that cannot
+fail is worse than no test, so if you add one here, break the code and check it
+bites.
+
+`tenantStore(newsroomId, poolFn)` takes its pool as an injected function — the
+engine's own convention, and what lets the tenancy tests assert real behaviour
+instead of grepping source.
+
 ## Tenancy: BOTH halves keyed on the newsroom (fixed 2026-09-07)
 
 The runtime keys `host.store` on the **signed-in user** —

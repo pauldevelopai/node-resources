@@ -8,9 +8,10 @@
   "scripts": {
     "start": "node index.js",
     "start:hosted": "node server-hosted.js",
-    "update": "node update.mjs"
+    "update": "node update.mjs",
+    "test": "node --test test/*.test.js"
   },
-  "comment_engine_dep": "runtime v0.16.0 IS tagged (host.corpus). Bumping this pin lights up corpus write-back and the human-verify button, which are dark on v0.15.0 — no other change needed.",
+  "comment_engine_dep": "Runtime pinned v0.17.0, which is past the v0.16.0 that adds host.corpus — so corpus write-back and the human-verify button are LIVE. This note previously said they were dark on v0.15.0; that was stale.",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "@developai/grounded-node-runtime": "github:pauldevelopai/grounded-node-runtime#v0.17.0",
