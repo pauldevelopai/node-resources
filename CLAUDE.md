@@ -95,12 +95,14 @@ Runs local (own key + own Postgres) and hosted (multi-tenant) from one code path
   `Web scan` and left the org's own sources reading a permanent `seen 0/new 0`.
   The scan response carries `attribution` (per named source) and the UI says it.
 - Engine dep pinned `#v0.2.0` (`keyword_none`); the tag is pushed (2026-09-07),
-  so a fresh `npm install` here resolves. Runtime is still pinned v0.15.0 while v0.16.0
-  (host.corpus) is tagged and available** — so today `corpusAdd` honestly
-  reports "runtime has no host.corpus yet", `corpus_record_id` stays null, and
-  therefore the "Mark human-verified" button never renders and
-  `/api/opportunities/verify` always refuses. Outcomes still record locally.
-  Bumping the pin lights all of it up; nothing else to change.
+  so a fresh `npm install` here resolves. Runtime is pinned **`#v0.17.0`**, which
+  is ≥ v0.16 — so `host.corpus` IS present and corpus write-back, the
+  "Mark human-verified" button and `/api/opportunities/verify` are all LIVE, not
+  dark. (This entry used to say v0.15.0 and that all three were disabled; that
+  was stale from before the pin moved, and it would have had the next person
+  believe verification was impossible.) The code is still guarded on
+  `host.corpus?.add`, so it degrades honestly if a Node is ever run against an
+  older runtime.
 
 ## Tenancy: BOTH halves keyed on the newsroom (fixed 2026-09-07)
 
