@@ -99,6 +99,62 @@ Runs local (own key + own Postgres) and hosted (multi-tenant) from one code path
   `/api/opportunities/verify` always refuses. Outcomes still record locally.
   Bumping the pin lights all of it up; nothing else to change.
 
+## Criteria the client hasn't sent yet (2026-09-07)
+
+PV's real criteria — sites used, grant size, geography, conversion history —
+are still with the client. What matters is that they land as a **config edit**,
+so here is exactly where the line sits.
+
+**Config, no redeploy:** theme / geography / exclusion keyword lists and the
+grant-size range (criteria card → `refreshCriteriaFromForm`); each component's
+weight 0–10 and the green/red thresholds (rules panel → `saveRules`); sources
+added, deactivated, rescheduled. Every save writes a **new version**, and each
+scored call records its `criteria_version_id` — so "did the new criteria
+actually do better" is answerable from data already being written.
+
+**Code, small:** a genuinely NEW criterion. `STARTER_FUNDING_CRITERIA` defines
+the component set and `saveRules` skips anything it doesn't already score
+(`if (!target) continue`). Add it to the starter and `mergedBase` carries it to
+existing tenants on their next save. A new rule TYPE needs no engine change —
+`registerEvaluator` takes it in-Node.
+
+**`grant_size` ships INERT and must stay that way until configured.** Weight 0,
+no bounds. This is not timidity: an unbounded `range` scores every stated
+amount 1, so at any weight above zero it hands every call a free component and
+moves the band lines. Hence *weight follows configuration* — `applyAmountRange`
+raises the weight off 0 when a range first arrives and drops it back to 0 if
+the range is cleared. Two traps here, both already sprung once:
+- `mergedBase` resets each rule to the starter's shape. It now carries the
+  tenant's `ideal_*`/`hard_*` bounds as well as keywords — **without that, a
+  rules-panel save wipes the bounds while keeping the weight**, which is the
+  free-marks failure arriving through the back door. Verified against all three
+  save paths.
+- **Never score the verbatim `amount` string.** It stays exactly as the funder
+  wrote it (that's what makes a record citable) and is never parsed for
+  scoring. Deriving a number from it at score time reads "ZAR 1.5 million" as
+  1.5 and "USD 50,000-100,000" as 50000100000 — both score **zero**, so a large
+  grant routes red and nobody looks. The model returns digits into
+  `amount_min`/`amount_max` instead (LeadFinder's `estimated_value` precedent),
+  and `grant_size` scores the derived `amount_for_scoring` (max, else min).
+  `toAmount` refuses anything that isn't already a clean number rather than
+  guessing — an unparseable amount scores "not stated", never a wrong figure.
+
+**Subscription sources: the slot exists, empty on purpose.** `sources.kind`
+reserves `'subscription'` with **no adapter behind it**, and `credential_ref`
+names an env/secret KEY — never a secret. Two gates before wiring it: confirm
+each provider's terms permit automated access (most paid funding databases
+forbid it, and a breach risks the CLIENT's account), and decide where the
+secret lives — not this DB, which also backs the tracker, africazero and every
+other hosted Node. Until then paid sources come in via the existing `'upload'`
+kind: the org exports from its own logged-in session.
+
+**Still missing, deliberately not built yet:** `time_spent_hours` on outcome
+capture, and any aggregation of outcomes. The data to answer "which sites and
+which criteria actually convert" is already being written (`outcome` +
+`source_id` + `criteria_version_id` on every call) but nothing computes it —
+there isn't a single `GROUP BY` in `routes.js`. Without time spent there's no
+cost-per-win either.
+
 ## V1 / V2 line (agreed with Paul 2026-08-27, against PV's concept note)
 - **Overnight sweep: V1.** Built and scheduled (03:30, half an hour after
   LeadFinder's 03:00). The concept note originally listed scheduled searching
