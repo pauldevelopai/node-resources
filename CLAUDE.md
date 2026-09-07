@@ -1,8 +1,10 @@
 # node-resources — Resources (GROUNDED Node)
 
-> **BUILT, NOT DEPLOYED — see NODE.md.** Do not create the GitHub repo, add the
-> nodes.json card, or deploy without Paul's go-ahead: PV (the first user) is
-> gated on Caili approving their concept note.
+> **BUILT, NOT DEPLOYED — see NODE.md.** The GitHub repo exists now; do not add
+> the nodes.json card, merge the V1 branch to `main`, or deploy without Paul's
+> go-ahead: PV (the first user) is gated on Caili approving their concept note.
+> The box deploys `main`, so the merge is part of going live, not preparation
+> for it.
 
 The **fundraising consumer of the shared Opportunity Finder engine**
 (`@developai/grounded-opportunity-engine`, entity `funding_call`). Find funding

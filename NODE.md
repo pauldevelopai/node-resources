@@ -2,12 +2,16 @@
 
 > **STATUS: BUILT, NOT DEPLOYED — do not publish, deploy, or card on the front door.**
 > PV's tenant may not go live before Caili approves their concept note. Building
-> is done ahead of that gate; going live is not. No GitHub repo exists yet; no
-> nodes.json entry; nothing on the box.
+> is done ahead of that gate; going live is not. The GitHub repo now EXISTS
+> (`main` + the V1 branch); there is still no nodes.json entry and nothing on
+> the box, which is what keeps it dark. The box deploys `main`, so **merging the
+> V1 branch to `main` is itself a step through the gate** — leave it on the
+> branch until Caili approves.
 
 - **Slug:** `resources`
 - **Display name:** Resources
-- **Repo:** `pauldevelopai/node-resources` (to be created)
+- **Repo:** `pauldevelopai/node-resources` (exists; V1 work on
+  `fix/v1-scope-and-source-attribution`, unmerged by design)
 - **What it is:** the shared **Opportunity Finder engine**'s fundraising
   consumer — entity `funding_call`. A thin configuration of
   `@developai/grounded-opportunity-engine` plus the fundraising features around
